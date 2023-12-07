@@ -12,7 +12,8 @@ code {
     monospace;
 }
 
-.list-group-item.active{
+.list-group-item.active {
   background-color: #dc3545;
   border-color: #dc3545;
 }
+

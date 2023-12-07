@@ -1,45 +1,41 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import CryptoJS from 'crypto-js';
 
 const RowComponent = ({ item }) => {
     const [status, setStatus] = useState(item.mx_Disposition);
     const [temp, setTemp] = useState("");
+    const secretKey = process.env.REACT_APP_SECRET_KEY;
+    const host=process.env.REACT_APP_API_HOST;
+
+    const generateClientHmacSignature = (data, secretKey) => {
+        const dataString = JSON.stringify(data);
+        return CryptoJS.HmacSHA256(dataString, secretKey).toString();
+    };
+
 
     const handleChangeStatus = async (leadId, value) => {
-        const accessKey = 'u$r7939d0fd927f58507f51de84d650ce4e';
-        const secretKey = '7a16b58bbb26529f16bfafc0aa635884cc6a585b';
-
-        const url = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.Update?accessKey=${accessKey}&secretKey=${secretKey}&leadId=${leadId}`;
-
-        const data = [
-            {
-                "Attribute": "mx_Disposition",
-                "Value": value
-            }
-        ]
-
+        const requestBody = { leadId, value };
+        const signature = generateClientHmacSignature(requestBody, secretKey);
         try {
-            const response = await fetch(url, {
+            const response = await fetch(`${host}/api/updateLeadStatus`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Signature': signature
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify({ leadId, value })
             });
-
-            if (response.ok) {
-                const responseData = await response.json();
-                setStatus(value);
-                console.log('Response:', responseData);
-            } else {
-                console.log('Failed to update lead:', response.status, response.statusText);
+    
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            setStatus(value);
         } catch (error) {
-            console.log('Error:', error);
+            console.error('Error:', error);
         }
-
     };
+    
 
     const statusArray = [
         'Application Logged In',

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { useNavigate , useLocation} from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from './Header';
+import CryptoJS from 'crypto-js';
 
 const Form = () => {
     const [title, setTitle] = useState("Title");
@@ -14,22 +15,22 @@ const Form = () => {
     const [maritalStatus, setMaritalStatus] = useState("");
     const [occupation, setOccupation] = useState("");
     const [product, setProduct] = useState("");
+    const secretKey = process.env.REACT_APP_SECRET_KEY;
+    const host = process.env.REACT_APP_API_HOST;
 
     let navigate = useNavigate();
 
-    const location = useLocation();
+    const generateClientHmacSignature = (data, secretKey) => {
+        const dataString = JSON.stringify(data);
+        return CryptoJS.HmacSHA256(dataString, secretKey).toString();
+    };
 
     const handleSubmit = (event) => {
         const queryString = JSON.parse(atob(window.location.search.split("?")[1]));
-        console.log(queryString);
-        console.log(occupation);
-       
-        const ownerId=queryString.ownerId;
-        const remarks=queryString.remarks;
-        event.preventDefault();
 
-        const accessKey = 'u$r7939d0fd927f58507f51de84d650ce4e';
-        const secretKey = '7a16b58bbb26529f16bfafc0aa635884cc6a585b';
+        const ownerId = queryString.ownerId;
+        const remarks = queryString.remarks;
+        event.preventDefault();
 
         if (gender === "Gender") {
             alert("Please select a gender");
@@ -71,7 +72,7 @@ const Form = () => {
             },
             {
                 "Attribute": "OwnerId",
-                "Value":ownerId
+                "Value": ownerId
             },
             {
                 "Attribute": "mx_Remarks",
@@ -79,37 +80,28 @@ const Form = () => {
             }
         ];
 
-        const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.Create?accessKey=${accessKey}&secretKey=${secretKey}`; // replace with your endpoint
+        const signature = generateClientHmacSignature(bodyData, secretKey);
 
-        const options = {
+
+        fetch(`${host}/api/submitForm`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Signature': signature
             },
             body: JSON.stringify(bodyData)
-        };
-
-
-        fetch(apiUrl, options)
-            .then(response => {
-                debugger;
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
+        })
+            .then(response => response.json())
             .then(data => {
                 if (data.Status === "Success") {
-                    console.log("Hello")
-                    alert("Your form has been successfully submitted")
+                    alert("Your form has been successfully submitted");
                     navigate(`/leads${window.location.search}`);
                 }
             })
             .catch(error => {
-                alert("Phone Number Already exists, please fill with a new number")
+                alert("Unable to submit the form, please try again.")
                 console.error('Error:', error);
             });
-
     };
 
     useEffect(() => {
@@ -141,12 +133,9 @@ const Form = () => {
     const minDateStr = minDate.toISOString().split("T")[0];
     const occupations = ["Business Owner", "Service", "Professional", "Retired", "Student", "House Wife", "Agriculture", "Driver", "Armed Forces", "Army/Navy/Police", "Skilled Worker", "Jeweler", "Scrap Dealer", "Doctor", "Lawyer", "Architect", "Others"]
 
-    const validDatalist = (e, arr) => {
-        console.log(e.target.value)
-        console.log(arr)
-        console.log(arr.indexOf(e.target.value))
-        return arr.indexOf(e.target.value) >= 0 ? true : false
-    }
+    // const validDatalist = (e, arr) => {
+    //     return arr.indexOf(e.target.value) >= 0 ? true : false
+    // }
 
     return (
         <div>
@@ -258,7 +247,7 @@ const Form = () => {
                             <label htmlFor="occupation" className="form-label">Occupation</label>
                         </div>
                     </div>
-                    <div className="row d-flex mx-0 mx-md-5 ps-md-5 pb-md-2">
+                    {/* <div className="row d-flex mx-0 mx-md-5 ps-md-5 pb-md-2">
                         <div className="col-9 col-md-4 col-lg-4 d-flex">
                             <input class="form-control form-control-sm" list="datalistOptions" id="exampleDataList" placeholder="Type to search..." onChange={e => (validDatalist(e, occupations) ? ( setOccupation(e.target.value)) : e.target.setCustomValidity("Value not from list"))}
                                 style={{ backgroundColor: '#F8F8F8' }} />
@@ -266,6 +255,20 @@ const Form = () => {
                                 <option value="">Select</option>
                                 {occupations.map((k, i) => { return (<option key={i} value={k}>{k}</option>) })}
                             </datalist>
+                        </div>
+                    </div> */}
+                    <div className="row d-flex mx-0 mx-md-5 ps-md-5 pb-md-2">
+                        <div className="col-9 col-md-4 col-lg-4 d-flex">
+                            <select
+                                className="form-select form-select-sm"
+                                aria-label="Small select example"
+                                value={occupation}
+                                onChange={e =>setOccupation(e.target.value)}
+                                style={{ backgroundColor: '#F8F8F8' }}
+                            >
+                                <option value="">Select</option>
+                                {occupations.map((k, i) => { return (<option key={i} value={k}>{k}</option>) })}
+                            </select>
                         </div>
                     </div>
                     <div className="row d-flex pt-2 mx-0 mx-md-5 ps-md-5 pb-md-2">

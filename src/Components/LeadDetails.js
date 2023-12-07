@@ -1,39 +1,54 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Header from './Header';
+import CryptoJS from 'crypto-js';
 
 
 
 const LeadDetails = () => {
 
     const [lead, setLead] = useState([]);
-    const accessKey = 'u$r7939d0fd927f58507f51de84d650ce4e';
-    const secretKey = '7a16b58bbb26529f16bfafc0aa635884cc6a585b';
     const { phoneNumber } = useParams();
+    const secretKey = process.env.REACT_APP_SECRET_KEY;
+    const host=process.env.REACT_APP_API_HOST;
 
     // Construct the URL with the parameters
-    const apiUrl = `https://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${accessKey}&secretKey=${secretKey}&phone=${phoneNumber}`;
+    const generateClientHmacSignature = (data, secretKey) => {
+        const dataString = JSON.stringify(data);
+        return CryptoJS.HmacSHA256(dataString, secretKey).toString();
+    };
 
     useEffect(() => {
-
-        // Use fetch to make the GET request
-        fetch(apiUrl)
+        const requestBody = { phoneNumber };
+        const signature = generateClientHmacSignature(requestBody, secretKey);
+        fetch(`${host}/api/getLeadByPhone`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Signature': signature
+            },
+            body: JSON.stringify({ phoneNumber })
+        })
             .then(response => response.json())
-            .then(data => {
-                console.log(data);
-                if (Array.isArray(data)) {
-                    setLead(data);
-                } else {
-                    setLead([data]);
-                }
+            .then(({ data, signature }) => {
+                const generatedSignature = generateClientHmacSignature(data, secretKey);
+                if (generatedSignature === signature) {
 
+                    if (Array.isArray(data)) {
+                        setLead(data);
+                    } else {
+                        setLead([data]);
+                    }
+                }
+                else {
+                    console.error('Invalid HMAC Signature');
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
             });
+    }, [phoneNumber]);
 
-    }, [phoneNumber]
-    );
 
     return (
         <div>
